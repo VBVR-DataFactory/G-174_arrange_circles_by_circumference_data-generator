@@ -51,8 +51,8 @@ class TaskConfig(GenerationConfig):
     )
     
     video_duration: float = Field(
-        default=8.0,
-        description="Target video duration in seconds"
+        default=5.0,
+        description="Target video duration in seconds (capped at 5s)"
     )
     
     # ══════════════════════════════════════════════════════════════════════════

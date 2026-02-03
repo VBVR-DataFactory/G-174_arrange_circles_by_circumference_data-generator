@@ -10,7 +10,8 @@ Must-haves:
 PROMPT_TEMPLATE = (
     "The scene shows {num_circles} circles of different sizes and colors arranged randomly.\n"
     "Keep every circle unchanged in size and color. Only rearrange their positions.\n"
-    "Align all circles on a single horizontal line and sort them from left to right by circumference, from largest to smallest."
+    "Align all circles on a single horizontal line. Center the entire row of circles in the image.\n"
+    "Sort them from left to right by circumference, from largest to smallest."
 )
 
 

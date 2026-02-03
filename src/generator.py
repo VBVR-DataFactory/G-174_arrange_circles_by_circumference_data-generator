@@ -326,7 +326,10 @@ class TaskGenerator(BaseGenerator):
     def _create_animation_frames(self, task_data: dict) -> list:
         """Create animation frames showing circles moving to sorted positions."""
         width, height = self.config.image_size
-        total_frames = int(self.config.video_fps * self.config.video_duration)
+        # Hard cap: keep video within 5 seconds.
+        duration_s = min(float(self.config.video_duration), 5.0)
+        total_frames = int(self.config.video_fps * duration_s)
+        total_frames = max(3, total_frames)
         hold_frames = int(total_frames * 0.1)
         transition_frames = total_frames - 2 * hold_frames
         
