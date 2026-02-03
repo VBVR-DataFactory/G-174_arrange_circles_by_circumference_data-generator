@@ -32,7 +32,15 @@ class OutputWriter:
         if task_pair.ground_truth_video and Path(task_pair.ground_truth_video).exists():
             video_src = Path(task_pair.ground_truth_video)
             video_ext = video_src.suffix  # .mp4 or .avi
-            shutil.copy(video_src, task_dir / f"ground_truth{video_ext}")
+            video_dst = task_dir / f"ground_truth{video_ext}"
+            # If the generator already wrote the video into the task directory,
+            # don't attempt to copy it onto itself.
+            try:
+                if video_src.resolve() != video_dst.resolve():
+                    shutil.copy(video_src, video_dst)
+            except OSError:
+                # Best-effort: if resolve fails, fall back to normal copy.
+                shutil.copy(video_src, video_dst)
         
         return task_dir
     

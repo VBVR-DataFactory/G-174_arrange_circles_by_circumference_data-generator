@@ -1,40 +1,25 @@
 """
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                           YOUR TASK PROMPTS                                   ║
-║                                                                               ║
-║  CUSTOMIZE THIS FILE to define prompts/instructions for your task.            ║
-║  Prompts are selected based on task type and returned to the model.           ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+Unified prompt template (REFINE_WORKFLOW compliant).
+
+Must-haves:
+- Single stable structure (no random template selection)
+- Parameterized via `.format(...)`
+- Parameters passed via function args / kwargs
 """
 
-import random
+PROMPT_TEMPLATE = (
+    "The scene shows {num_circles} circles of different sizes and colors arranged randomly.\n"
+    "Keep every circle unchanged in size and color. Only rearrange their positions.\n"
+    "Align all circles on a single horizontal line and sort them from left to right by circumference, from largest to smallest."
+)
 
 
-PROMPTS = {
-    "default": [
-        "Animate circles moving to arrange themselves by circumference from largest to smallest along the horizontal line.",
-        "Show circles smoothly moving to line up on the horizontal bar, sorted by their circumference in descending order.",
-        "Move circles to the horizontal line, arranging them from largest circumference to smallest.",
-        "Animate circles as they travel to their sorted positions on the line, ordered by circumference.",
-        "Display circles moving to align on the horizontal line, with the largest circumference first.",
-    ],
-}
-
-
-def get_prompt(task_type: str = "default") -> str:
-    """
-    Select a random prompt for the given task type.
-    
-    Args:
-        task_type: Type of task (key in PROMPTS dict)
-        
-    Returns:
-        Random prompt string from the specified type
-    """
-    prompts = PROMPTS.get(task_type, PROMPTS["default"])
-    return random.choice(prompts)
+def get_prompt(task_type: str = "default", num_circles: int = 6, **kwargs) -> str:
+    _ = task_type
+    _ = kwargs
+    return PROMPT_TEMPLATE.format(num_circles=int(num_circles))
 
 
 def get_all_prompts(task_type: str = "default") -> list[str]:
-    """Get all prompts for a given task type."""
-    return PROMPTS.get(task_type, PROMPTS["default"])
+    _ = task_type
+    return [get_prompt("default")]

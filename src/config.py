@@ -39,7 +39,10 @@ class TaskConfig(GenerationConfig):
     
     generate_videos: bool = Field(
         default=True,
-        description="Whether to generate ground truth videos"
+        description=(
+            "Whether to generate ground truth videos. "
+            "Implemented without cv2/numpy; can be disabled if desired."
+        ),
     )
     
     video_fps: int = Field(
@@ -74,6 +77,27 @@ class TaskConfig(GenerationConfig):
     max_radius: int = Field(
         default=80,
         description="Maximum circle radius in pixels"
+    )
+
+    min_radius_gap: int = Field(
+        default=4,
+        ge=1,
+        le=30,
+        description="Minimum difference between any two circle radii (ensures unique circumference ordering).",
+    )
+
+    min_radius_ratio: float = Field(
+        default=1.15,
+        ge=1.05,
+        le=2.0,
+        description="Minimum ratio between adjacent radii after sorting (ensures visually obvious size differences).",
+    )
+
+    min_spacing: int = Field(
+        default=16,
+        ge=8,
+        le=80,
+        description="Minimum spacing between circles when aligned on the line.",
     )
     
     circle_colors: list = Field(
