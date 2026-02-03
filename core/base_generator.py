@@ -24,9 +24,12 @@ class BaseGenerator(ABC):
         self.config = config
         if config.random_seed is not None:
             import random
-            import numpy as np
             random.seed(config.random_seed)
-            np.random.seed(config.random_seed)
+            # IMPORTANT:
+            # Do NOT import numpy here.
+            # On some macOS environments, importing numpy may crash the interpreter
+            # (segmentation fault) before we can catch an exception.
+            # Keep deterministic seeding via Python's `random` only.
     
     @abstractmethod
     def generate_task_pair(self, task_id: str) -> TaskPair:
