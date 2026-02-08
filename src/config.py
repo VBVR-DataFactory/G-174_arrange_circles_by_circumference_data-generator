@@ -46,7 +46,7 @@ class TaskConfig(GenerationConfig):
     )
     
     video_fps: int = Field(
-        default=10,
+        default=16,
         description="Video frame rate"
     )
     
