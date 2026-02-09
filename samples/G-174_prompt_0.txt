@@ -1,0 +1,4 @@
+The scene shows 7 circles of different sizes and colors arranged randomly.
+Keep every circle unchanged in size and color. Only rearrange their positions.
+Align all circles on a single horizontal line. Center the entire row of circles in the image.
+Sort them from left to right by circumference, from largest to smallest.
