@@ -76,7 +76,7 @@ Sort them from left to right by circumference, from largest to smallest.
 <table>
 <tr>
   <td align="center"><img src="samples/G-174_first_0.png" width="250"/></td>
-  <td align="center"><img src="samples/G-174_video_0.gif" width="400"/></td>
+  <td align="center"><img src="samples/G-174_video_0.gif" width="320"/></td>
   <td align="center"><img src="samples/G-174_final_0.png" width="250"/></td>
 </tr>
 <tr>
