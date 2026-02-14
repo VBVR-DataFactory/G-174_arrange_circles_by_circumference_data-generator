@@ -40,7 +40,7 @@ class BaseGenerator(ABC):
         """Generate complete dataset."""
         pairs = []
         for i in range(self.config.num_samples):
-            task_id = f"{self.config.domain}_{i:04d}"
+            task_id = f"{self.config.domain}_{i:08d}"
             pair = self.generate_task_pair(task_id)
             pairs.append(pair)
             print(f"  Generated: {task_id}")
