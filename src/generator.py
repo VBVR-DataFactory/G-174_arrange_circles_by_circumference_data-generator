@@ -10,12 +10,11 @@
 import random
 import tempfile
 import math
-import shutil
-import subprocess
 from pathlib import Path
 from PIL import Image, ImageDraw
 
 from core import BaseGenerator, TaskPair, ImageRenderer
+from core.video_utils import VideoGenerator
 from .config import TaskConfig
 from .prompts import get_prompt
 
@@ -37,6 +36,11 @@ class TaskGenerator(BaseGenerator):
 
         # Best-effort deduplication within a run
         self.seen_combinations = set()
+        
+        # Initialize video generator if enabled (uses opencv to create MP4)
+        self.video_generator = None
+        if config.generate_videos and VideoGenerator.is_available():
+            self.video_generator = VideoGenerator(fps=config.video_fps, output_format="mp4")
     
     def generate_task_pair(self, task_id: str) -> TaskPair:
         """Generate one task pair."""
@@ -58,12 +62,32 @@ class TaskGenerator(BaseGenerator):
         final_image = self._render_final_state(task_data)
         
         video_path = None
-        if self.config.generate_videos:
-            task_dir = Path(self.config.output_dir) / f"{self.config.domain}_task" / task_id
-            task_dir.mkdir(parents=True, exist_ok=True)
-            video_path = self._generate_video(task_data, task_dir)
+        if self.config.generate_videos and self.video_generator:
+            video_path = self._generate_video(first_image, final_image, task_id, task_data)
         
         prompt = get_prompt("default", num_circles=int(task_data.get("num_circles", 0)))
+        
+        # Remove redundant fields from task_data for metadata
+        # Remove 'signature' (redundant), 'sorted_circles' (derivable from circles by circumference)
+        # Remove 'num_circles' (derivable as len(circles)), 'line_y' (derivable from final_y)
+        # Remove 'circumference' (derivable from radius: 2 * π * radius)
+        optimized_task_data = {
+            "circles": [
+                {
+                    "id": circle["id"],
+                    "radius": circle["radius"],
+                    "color": list(circle["color"]),
+                    "initial_position": [circle["x"], circle["y"]],
+                    "final_position": [circle["final_x"], circle["final_y"]],
+                }
+                for circle in task_data["circles"]
+            ],
+        }
+
+        # Build metadata
+        metadata = self._build_metadata(task_id, optimized_task_data)
+        
+        
         
         return TaskPair(
             task_id=task_id,
@@ -71,7 +95,8 @@ class TaskGenerator(BaseGenerator):
             prompt=prompt,
             first_image=first_image,
             final_image=final_image,
-            ground_truth_video=video_path
+            ground_truth_video=video_path,
+            metadata=metadata
         )
 
     def _task_signature(self, task_data: dict) -> tuple:
@@ -88,28 +113,32 @@ class TaskGenerator(BaseGenerator):
         margin = 100
         spacing = int(self.config.min_spacing)
         
-        max_attempts_generation = 100
+        max_attempts_generation = 30  # Reduced from 100 to improve performance
         
         for gen_attempt in range(max_attempts_generation):
             requested = random.randint(self.config.min_circles, self.config.max_circles)
 
             # Enforce visually obvious size gaps; if not feasible with requested count,
             # gradually reduce the count until we can construct a valid radius set.
+            # Limit reduction attempts to avoid excessive computation
             radii = None
             num_circles = requested
-            while num_circles >= int(self.config.min_circles):
+            max_reduction_attempts = 3  # Limit reduction attempts
+            reduction_count = 0
+            while num_circles >= int(self.config.min_circles) and reduction_count < max_reduction_attempts:
                 radii = self._sample_radii_with_obvious_gaps(num_circles, width=width, margin=margin, spacing=spacing)
                 if radii is not None:
                     break
                 num_circles -= 1
+                reduction_count += 1
             if radii is None:
                 continue
             
             circles = []
-            max_attempts = 1000
+            max_attempts = 150  # Further reduced from 300 to improve performance
             
             for radius in radii:
-                
+                placed = False
                 for attempt in range(max_attempts):
                     x = random.randint(margin + radius, width - margin - radius)
                     y = random.randint(margin + radius, height - margin - radius)
@@ -125,7 +154,16 @@ class TaskGenerator(BaseGenerator):
                             'circumference': circumference,
                             'id': len(circles)
                         })
+                        placed = True
                         break
+                
+                # If couldn't place this circle, break early
+                if not placed:
+                    break
+            
+            # Early exit if not all circles were placed
+            if len(circles) != len(radii):
+                continue
             
             sorted_circles = sorted(circles, key=lambda c: c['circumference'], reverse=True)
             
@@ -168,7 +206,7 @@ class TaskGenerator(BaseGenerator):
             return None
 
         # Try a geometric progression (ensures visible differences).
-        for _ in range(300):
+        for _ in range(100):  # Reduced from 300 to improve performance
             ratio = random.uniform(ratio_min, min(1.35, ratio_min + 0.18))
             # Geometric sum for radii (smallest -> largest)
             geom_sum = (ratio**n - 1.0) / (ratio - 1.0)
@@ -242,9 +280,13 @@ class TaskGenerator(BaseGenerator):
     def _check_overlap(self, x: int, y: int, radius: int, existing_circles: list) -> bool:
         """Check if a circle overlaps with existing circles."""
         padding = 10
+        # Use squared distances to avoid expensive sqrt() calls
         for circle in existing_circles:
-            distance = math.sqrt((x - circle['x']) ** 2 + (y - circle['y']) ** 2)
-            if distance < radius + circle['radius'] + padding:
+            dx = x - circle['x']
+            dy = y - circle['y']
+            distance_sq = dx * dx + dy * dy
+            min_dist_sq = (radius + circle['radius'] + padding) ** 2
+            if distance_sq < min_dist_sq:
                 return True
         return False
     
@@ -274,55 +316,28 @@ class TaskGenerator(BaseGenerator):
         
         return img
     
-    def _generate_video(self, task_data: dict, task_dir: Path) -> str:
-        """Generate animation video without cv2/numpy (ffmpeg preferred)."""
+    def _generate_video(
+        self,
+        first_image: Image.Image,
+        final_image: Image.Image,
+        task_id: str,
+        task_data: dict
+    ) -> str | None:
+        """Generate ground truth video showing circles moving to sorted positions."""
+        temp_dir = Path(tempfile.gettempdir()) / f"{self.config.domain}_videos"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        video_path = temp_dir / f"{task_id}_ground_truth.mp4"
+        
+        # Create animation frames
         frames = self._create_animation_frames(task_data)
-        mp4_path = task_dir / "ground_truth.mp4"
-        if self._try_write_mp4_with_ffmpeg(frames, mp4_path, fps=int(self.config.video_fps), temp_dir=task_dir):
-            return str(mp4_path)
-        gif_path = task_dir / "ground_truth.gif"
-        self._write_gif(frames, gif_path, fps=int(self.config.video_fps))
-        return str(gif_path)
-
-    def _try_write_mp4_with_ffmpeg(self, frames: list[Image.Image], out_path: Path, *, fps: int, temp_dir: Path) -> bool:
-        ffmpeg = shutil.which("ffmpeg")
-        if not ffmpeg:
-            return False
-        with tempfile.TemporaryDirectory(dir=temp_dir, prefix="_frames_") as tmp:
-            frames_dir = Path(tmp)
-            for i, im in enumerate(frames):
-                ImageRenderer.ensure_rgb(im).save(frames_dir / f"frame_{i:04d}.png")
-            cmd = [
-                ffmpeg,
-                "-y",
-                "-framerate",
-                str(max(1, fps)),
-                "-i",
-                str(frames_dir / "frame_%04d.png"),
-                "-vf",
-                "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-                "-pix_fmt",
-                "yuv420p",
-                str(out_path),
-            ]
-            try:
-                subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except Exception:
-                return False
-        return out_path.exists()
-
-    def _write_gif(self, frames: list[Image.Image], out_path: Path, *, fps: int) -> None:
-        duration_ms = int(round(1000.0 / max(1, fps)))
-        rgb_frames = [ImageRenderer.ensure_rgb(im) for im in frames]
-        rgb_frames[0].save(
-            out_path,
-            save_all=True,
-            append_images=rgb_frames[1:],
-            duration=duration_ms,
-            loop=0,
-            optimize=False,
+        
+        result = self.video_generator.create_video_from_frames(
+            frames,
+            video_path
         )
-    
+        
+        return str(result) if result else None
+
     def _create_animation_frames(self, task_data: dict) -> list:
         """Create animation frames showing circles moving to sorted positions."""
         width, height = self.config.image_size
@@ -350,20 +365,32 @@ class TaskGenerator(BaseGenerator):
             original_circle['end_x'] = sorted_circle['final_x']
             original_circle['end_y'] = sorted_circle['final_y']
         
+        # Optimize: reduce frame count for faster generation
+        # Use fewer frames but maintain smooth animation
+        if transition_frames > 40:
+            transition_frames = 40  # Cap at 40 frames for performance
+        
+        # Pre-compute circle positions for all frames
+        circle_positions = []
         for i in range(transition_frames):
             progress = i / (transition_frames - 1) if transition_frames > 1 else 1.0
             ease_progress = self._ease_in_out(progress)
-            
-            img = Image.new('RGB', (width, height), color=(255, 255, 255))
-            draw = ImageDraw.Draw(img)
-            
+            positions = []
             for circle in circles:
                 current_x = circle['start_x'] + (circle['end_x'] - circle['start_x']) * ease_progress
                 current_y = circle['start_y'] + (circle['end_y'] - circle['start_y']) * ease_progress
+                positions.append((current_x, current_y))
+            circle_positions.append(positions)
+        
+        # Create frames with pre-computed positions
+        white_bg = Image.new('RGB', (width, height), color=(255, 255, 255))
+        for positions in circle_positions:
+            img = white_bg.copy()
+            draw = ImageDraw.Draw(img)
+            for circle, (cx, cy) in zip(circles, positions):
                 r = circle['radius']
-                draw.ellipse([current_x - r, current_y - r, current_x + r, current_y + r], 
+                draw.ellipse([cx - r, cy - r, cx + r, cy + r], 
                            fill=circle['color'], outline=(0, 0, 0), width=2)
-            
             frames.append(img)
         
         final_frame = self._render_final_state(task_data)

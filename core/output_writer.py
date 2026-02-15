@@ -42,6 +42,14 @@ class OutputWriter:
                 # Best-effort: if resolve fails, fall back to normal copy.
                 shutil.copy(video_src, video_dst)
         
+        
+        # Write metadata if provided
+        if task_pair.metadata is not None:
+            import json
+            (task_dir / "question_metadata.json").write_text(
+                json.dumps(task_pair.metadata, ensure_ascii=False, indent=2)
+            )
+        
         return task_dir
     
     def write_dataset(self, task_pairs: List[TaskPair]) -> Path:
