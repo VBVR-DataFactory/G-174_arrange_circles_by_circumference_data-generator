@@ -1,6 +1,6 @@
 """Pydantic schemas for task data."""
 
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 from pydantic import BaseModel
 
 
@@ -11,7 +11,8 @@ class TaskPair(BaseModel):
     prompt: str
     first_image: Any  # PIL Image
     final_image: Optional[Any] = None  # PIL Image
-    ground_truth_video: Optional[str] = None  # Path to video (optional)
+    ground_truth_video: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None  # Task metadata for deduplication and tracking  # Path to video (optional)
     
     class Config:
         arbitrary_types_allowed = True

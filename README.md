@@ -70,7 +70,6 @@ Keep every circle unchanged in size and color. Only rearrange their positions.
 Align all circles on a single horizontal line. Center the entire row of circles in the image.
 Sort them from left to right by circumference, from largest to smallest.
 ```
-
 ### Visual
 
 <table>
@@ -119,15 +118,14 @@ Rearrange randomly placed circles onto a horizontal line, sorted by their circum
 ## 📦 Data Format
 
 ```
-data/questions/arrange_circles_by_circumference_task/
-├── arrange_circles_by_circumference_0000/
-│   ├── first_frame.png          # Initial state (random arrangement)
-│   ├── final_frame.png          # Goal state (sorted by circumference)
-│   ├── prompt.txt               # Task instructions
-│   └── ground_truth.mp4         # Solution video (16 fps)
-├── arrange_circles_by_circumference_0001/
-│   └── ...
+data/questions/arrange_circles_by_circumference_task/arrange_circles_by_circumference_00000000/
+├── first_frame.png      # Initial state (random arrangement)
+├── final_frame.png      # Goal state (sorted by circumference)
+├── prompt.txt           # Task instructions
+├── ground_truth.mp4     # Solution video (16 fps)
+└── question_metadata.json # Task metadata
 ```
+
 
 **File specifications**: Images are 1024×1024 PNG. Videos are MP4 at 16 fps, approximately 5 seconds long showing the rearrangement process.
 
