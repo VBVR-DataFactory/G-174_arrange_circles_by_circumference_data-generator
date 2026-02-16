@@ -12,7 +12,7 @@ Each sample pairs a **task** (first frame + prompt describing what needs to happ
 |----------|-------|
 | **Task ID** | G-174 |
 | **Task** | Arrange Circles By Circumference |
-| **Category** | Sorting & Spatial Reasoning |
+| **Category** | Perception |
 | **Resolution** | 1024×1024 px |
 | **FPS** | 16 fps |
 | **Duration** | ~5 seconds |
