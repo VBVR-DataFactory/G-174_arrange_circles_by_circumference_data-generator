@@ -46,7 +46,7 @@ class OutputWriter:
         # Write metadata if provided
         if task_pair.metadata is not None:
             import json
-            (task_dir / "question_metadata.json").write_text(
+            (task_dir / "metadata.json").write_text(
                 json.dumps(task_pair.metadata, ensure_ascii=False, indent=2)
             )
         
