@@ -26,8 +26,8 @@ Each sample pairs a **task** (first frame + prompt describing what needs to happ
 
 ```bash
 # Clone the repository
-git clone https://github.com/Jiaqi-Gong/Gong_VBVR_Data.git
-cd Gong_VBVR_Data/G-174_arrange_circles_by_circumference_data-generator
+git clone https://github.com/VBVR-DataFactory/G-174_arrange_circles_by_circumference_data-generator.git
+cd G-174_arrange_circles_by_circumference_data-generator
 
 # Install dependencies
 pip install -r requirements.txt
