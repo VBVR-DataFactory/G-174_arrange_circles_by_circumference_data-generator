@@ -123,7 +123,7 @@ data/questions/arrange_circles_by_circumference_task/arrange_circles_by_circumfe
 ├── final_frame.png      # Goal state (sorted by circumference)
 ├── prompt.txt           # Task instructions
 ├── ground_truth.mp4     # Solution video (16 fps)
-└── question_metadata.json # Task metadata
+└── metadata.json # Task metadata
 ```
 
 
